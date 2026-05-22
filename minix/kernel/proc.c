@@ -1782,34 +1782,35 @@ void dequeue(struct proc *rp)
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
-static struct proc * pick_proc(void)
-{
-/* Decide who to run now.  A new process is selected and returned.
- * When a billable process is selected, record it in 'bill_ptr', so that the 
- * clock task can tell who to bill for system time.
- *
- * This function always uses the run queues of the local cpu!
- */
-  register struct proc *rp;			/* process to run */
-  struct proc **rdy_head;
-  int q;				/* iterate over queues */
+ 
+static struct proc * pick_proc(void) {
+    register struct proc *rp;
+    struct proc **rdy_head;
+    int q;
 
-  /* Check each of the scheduling queues for ready processes. The number of
-   * queues is defined in proc.h, and priorities are set in the task table.
-   * If there are no processes ready to run, return NULL.
-   */
-  rdy_head = get_cpulocal_var(run_q_head);
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
-	if(!(rp = rdy_head[q])) {
-		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
-		continue;
-	}
-	assert(proc_is_runnable(rp));
-	if (priv(rp)->s_flags & BILLABLE)	 	
-		get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
-	return rp;
-  }
-  return NULL;
+    rdy_head = get_cpulocal_var(run_q_head);
+
+    /* 1. Tarefas críticas do Sistema Operacional (Filas 0 a 6) */
+    /* Devem continuar rodando por prioridade para o Minix não travar */
+    for (q = 0; q < 7; q++) {
+        if ((rp = rdy_head[q])) {
+            if (priv(rp)->s_flags & BILLABLE)
+                get_cpulocal_var(bill_ptr) = rp;
+            return rp;
+        }
+    }
+
+    /* 2. Processos de Usuário (FCFS na Fila 7) */
+    /* Olhamos apenas para a cabeça da fila 7 (USER_Q). 
+       O primeiro da fila é o mais antigo (First-Come). */
+    if ((rp = rdy_head[7])) {
+        if (priv(rp)->s_flags & BILLABLE)
+            get_cpulocal_var(bill_ptr) = rp;
+        return rp;
+    }
+
+    /* Se não houver processos prontos, retorna NULL (CPU ociosa) */
+    return NULL;
 }
 
 /*===========================================================================*
@@ -1890,23 +1891,18 @@ static void notify_scheduler(struct proc *p)
 	}
 }
 
-void proc_no_time(struct proc * p)
-{
-	if (!proc_kernel_scheduler(p) && priv(p)->s_flags & PREEMPTIBLE) {
-		/* this dequeues the process */
-		notify_scheduler(p);
-	}
-	else {
-		/*
-		 * non-preemptible processes only need their quantum to
-		 * be renewed. In fact, they by pass scheduling
-		 */
-		p->p_cpu_time_left = ms_2_cpu_time(p->p_quantum_size_ms);
+void proc_no_time(struct proc * p) {
+    /* * MODIFICAÇÃO PARA O FCFS:
+     * Em vez de notificar o escalonador para remover o processo (preempção),
+     * nós simplesmente renovamos o tempo de CPU dele infinitamente.
+     * Isso garante que ele rode até terminar ou bloquear (eu acho '-').
+     */
+    p->p_cpu_time_left = ms_2_cpu_time(p->p_quantum_size_ms);
+
 #if DEBUG_RACE
-		RTS_SET(p, RTS_PREEMPTED);
-		RTS_UNSET(p, RTS_PREEMPTED);
+    RTS_SET(p, RTS_PREEMPTED);
+    RTS_UNSET(p, RTS_PREEMPTED);
 #endif
-	}
 }
 
 void reset_proc_accounting(struct proc *p)
