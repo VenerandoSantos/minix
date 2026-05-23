@@ -1790,8 +1790,8 @@ static struct proc * pick_proc(void) {
 
     rdy_head = get_cpulocal_var(run_q_head);
 
-    /* 1. Tarefas críticas do Sistema Operacional (Filas 0 a 6) */
-    /* Devem continuar rodando por prioridade para o Minix não travar */
+    /* 1. Tarefas criticas do Sistema Operacional (Filas 0 a 6) */
+    /* Devem continuar rodando por prioridade para o Minix nao travar */
     for (q = 0; q < 7; q++) {
         if ((rp = rdy_head[q])) {
             if (priv(rp)->s_flags & BILLABLE)
@@ -1800,16 +1800,16 @@ static struct proc * pick_proc(void) {
         }
     }
 
-    /* 2. Processos de Usuário (FCFS na Fila 7) */
+    /* 2. Processos de Usuario (FCFS na Fila 7) */
     /* Olhamos apenas para a cabeça da fila 7 (USER_Q). 
-       O primeiro da fila é o mais antigo (First-Come). */
+       O primeiro da fila eh o mais antigo (First-Come). */
     if ((rp = rdy_head[7])) {
         if (priv(rp)->s_flags & BILLABLE)
             get_cpulocal_var(bill_ptr) = rp;
         return rp;
     }
 
-    /* Se não houver processos prontos, retorna NULL (CPU ociosa) */
+    /* Se nao houver processos prontos, retorna NULL (CPU ociosa) */
     return NULL;
 }
 
@@ -1893,9 +1893,9 @@ static void notify_scheduler(struct proc *p)
 
 void proc_no_time(struct proc * p) {
     /* * MODIFICAÇÃO PARA O FCFS:
-     * Em vez de notificar o escalonador para remover o processo (preempção),
-     * nós simplesmente renovamos o tempo de CPU dele infinitamente.
-     * Isso garante que ele rode até terminar ou bloquear (eu acho '-').
+     * Em vez de notificar o escalonador para remover o processo (preempcao),
+     * nos simplesmente renovamos o tempo de CPU dele infinitamente.
+     * Isso garante que ele rode ate terminar ou bloquear (eu acho '-').
      */
     p->p_cpu_time_left = ms_2_cpu_time(p->p_quantum_size_ms);
 
